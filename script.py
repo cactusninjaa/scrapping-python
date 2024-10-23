@@ -1,5 +1,9 @@
 import requests
 import csv
+import os
+import pathlib
+import shutil
+import urllib.request
 from bs4 import BeautifulSoup
 
 url = 'https://books.toscrape.com/'
@@ -17,9 +21,11 @@ def scrap_one_page(page_url) :
     price_excluding_tax = table_rows[3].text.replace('Â', '')
     number_available = table_rows[5].text.split()[2].replace('(', '')
     product_description = soup.find_all('p')[3].text
-    category = soup.select('li > a')[2].text
+    category = soup.select('li > a')[2].text.lower()
     review_rating = soup.find(class_='star-rating').get('class')[1]
     image_url = url.replace('catalogue/a-light-in-the-attic_1000/index.html', '') + soup.find('img')['src'].replace('../../', '')
+    
+    download_image(image_url, title, category)
 
     return  [
         product_page_url, 
@@ -33,6 +39,35 @@ def scrap_one_page(page_url) :
         review_rating,
         image_url
         ]
+
+def create_image_folder () :
+    path = pathlib.Path("./images")
+
+    if path.exists():
+        shutil.rmtree(path) 
+
+    try:
+        os.mkdir(path)
+    except OSError as error:
+        print(error)  
+
+        
+def create_category_folder(category) :
+    directory = category
+    parent_dir = "./images"
+    path = os.path.join(parent_dir, directory) 
+
+    try:
+        os.mkdir(path)
+    except OSError as error:
+        print(error)  
+
+
+def download_image(image_url, title, category) :
+    title = title.replace(' ', '-').lower()
+    file_name = f"./images/{category}/{title}.jpg"
+    urllib.request.urlretrieve(image_url, file_name)
+
 
 def scrap_category(category_url) :
     print(url + category_url)
@@ -65,8 +100,9 @@ with open('book.csv', 'w', newline='', encoding='utf-8') as fichier_csv:
         'image_url'
         ])
     
+    create_image_folder()
+    create_category_folder('default')
     scrap_category('catalogue/category/books/default_15/index.html')
-    # print(data_pages)
     
     for data in data_pages :
         writter.writerow(
