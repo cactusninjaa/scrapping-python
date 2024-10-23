@@ -2,9 +2,11 @@ import requests
 import csv
 import os
 import pathlib
+import matplotlib.pyplot as plt
 import shutil
 import urllib.request
 from bs4 import BeautifulSoup
+
 
 url = 'https://books.toscrape.com/'
 
@@ -73,7 +75,6 @@ def create_setup_folder(name) :
         
 def create_category_folder(category) :
     directory = category
-    print(directory)
     parent_dir = "./images"
     path = os.path.join(parent_dir, directory) 
 
@@ -90,7 +91,6 @@ def download_image(image_url, title, category) :
 
 
 def scrap_category(category_url) :
-    print(url + category_url)
 
     response = requests.get(url + category_url)
     soup = BeautifulSoup(response.content, 'html.parser')
@@ -114,11 +114,55 @@ def scrap_all() :
     soup = BeautifulSoup(response.content, 'html.parser')
 
     categorys = soup.select('ul.nav > li > ul > li > a')
+    category_data = {}
     for category in categorys :
-        create_category_folder(category.text.replace(' ', '').replace('\n', '').lower())
-        scrap_category(category["href"])
+        category = category.text.replace(' ', '').replace('\n', '').lower()
+        # create_category_folder(category)
+        # scrap_category(category["href"])
+        data = counter(category)
+        category_data[category] = data
+
+    return category_data
+
+def counter(category_name) :
+    moyenne, counter = 0 , 0
+    with open(f'./csv/{category_name}.csv','r', newline='',) as fichier_csv:         
+        reader = csv.reader(fichier_csv)        
+        for ligne in reader:     
+            if ligne[3] == 'price_including_tax':
+                continue
+            counter += 1
+            price = ligne[3].replace('£', '')
+            moyenne += float(price) / counter
+    return [counter, round(moyenne, 2)]
+
+def pie_chart(category_data) :
+    categorys = [key for key in category_data.keys()]
+    book_count = [price[0] for price in category_data.values()]
+
+
+    plt.figure(figsize=(10, 10))
+    plt.pie(book_count, labels=categorys, autopct='%1.1f%%', startangle=140, textprops={'fontsize': 8}, wedgeprops={'linewidth': 0.5, 'edgecolor': 'black'})
+    plt.axis('equal')
+    plt.title('Répartition des prix moyens des livres par catégorie')
+    plt.show()
+
+def bar_chart(category_data) :
+    categorys = [key for key in category_data.keys()]
+    prices = [price[1] for price in category_data.values()]
+
+    plt.figure(figsize=(10, 12))
+    plt.barh(categorys, prices, color='skyblue')
+    plt.xlabel('Prix moyen (en £)')
+    plt.title('Prix moyen des livres par catégorie')
+    plt.tight_layout()
+    plt.show()
+
 
 create_setup_folder('images')
 create_setup_folder('csv')
-scrap_all()
+category_data = scrap_all()
+pie_chart(category_data)
+bar_chart(category_data)
+
 
