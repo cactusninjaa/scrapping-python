@@ -5,6 +5,8 @@ __pycache__/
 
 *.csv
 /csv
+*.pdf
+*.png
 
 /images
 

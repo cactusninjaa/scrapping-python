@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 import shutil
 import urllib.request
 from bs4 import BeautifulSoup
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
+
 
 
 url = 'https://books.toscrape.com/'
@@ -116,11 +120,10 @@ def scrap_all() :
     categorys = soup.select('ul.nav > li > ul > li > a')
     category_data = {}
     for category in categorys :
-        category = category.text.replace(' ', '').replace('\n', '').lower()
-        # create_category_folder(category)
-        # scrap_category(category["href"])
-        data = counter(category)
-        category_data[category] = data
+        #create_category_folder(category.text.replace(' ', '').replace('\n', '').lower())
+        #scrap_category(category["href"])
+        data = counter(category.text.replace(' ', '').replace('\n', '').lower())
+        category_data[category.text.replace(' ', '').replace('\n', '').lower()] = data
 
     return category_data
 
@@ -136,16 +139,38 @@ def counter(category_name) :
             moyenne += float(price) / counter
     return [counter, round(moyenne, 2)]
 
-def pie_chart(category_data) :
+def other_category(category_data) :
     categorys = [key for key in category_data.keys()]
-    book_count = [price[0] for price in category_data.values()]
+    book_count = [count[0] for count in category_data.values()]
+    book_count_high = []
+    other_category = []
+    other = 0
+    for i in range(len(book_count)) :
+        if book_count[i] <= 12 :
+            other += book_count[i]
+        else :
+            book_count_high.append(book_count[i])
+            other_category.append(categorys[i])
+    
+    book_count_high.append(other)
+    other_category.append("other")
 
+    return [book_count_high, other_category]
+
+
+def pie_chart(category_data) :
+    other = (other_category(category_data))
+    categorys = other[1]
+    book_count = other[0]
+  
 
     plt.figure(figsize=(10, 10))
     plt.pie(book_count, labels=categorys, autopct='%1.1f%%', startangle=140, textprops={'fontsize': 8}, wedgeprops={'linewidth': 0.5, 'edgecolor': 'black'})
     plt.axis('equal')
     plt.title('Répartition des prix moyens des livres par catégorie')
-    plt.show()
+    plot_filename = "chart-pie.png"  
+    plt.savefig(plot_filename)
+    plt.close()
 
 def bar_chart(category_data) :
     categorys = [key for key in category_data.keys()]
@@ -156,13 +181,62 @@ def bar_chart(category_data) :
     plt.xlabel('Prix moyen (en £)')
     plt.title('Prix moyen des livres par catégorie')
     plt.tight_layout()
-    plt.show()
+    plot_filename = "chart-bar.png"  
+    plt.savefig(plot_filename)
+    plt.close()
+
+def get_most_espensive(category_data) : 
+    categorys = [key for key in category_data.keys()]
+    prices = [price[1] for price in category_data.values()]
+    index_of_max = prices.index(max(prices))
+    return categorys[index_of_max]
+
+def get_higher_category(category_data) :
+    categorys = [key for key in category_data.keys()]
+    book_count = [count[0] for count in category_data.values()]
+    index_of_max = book_count.index(max(book_count))
+    return categorys[index_of_max]
+
+def get_average_price(category_data) :
+    prices = [price[1] for price in category_data.values()]
+    average_price = sum(prices) / len(prices)
+    return round(average_price, 2)
+
+def create_pdf(filename, category_data):
+
+    pdf = SimpleDocTemplate(filename)
+
+    styles = getSampleStyleSheet()
+    title_style = styles['Title']
+    description_style = styles['BodyText']
+
+    title = Paragraph("Rapport des prix des livres d'occasion", title_style)
 
 
-create_setup_folder('images')
-create_setup_folder('csv')
+    plot_image1 = Image("chart-pie.png")
+    plot_image1.drawWidth = 600
+
+    plot_image1.drawHeight = 600
+    description1 = Paragraph("Description : Répartition des prix moyens des livres par catégorie.", description_style)
+
+
+    plot_image2 = Image("chart-bar.png")
+    plot_image2.drawWidth = 500
+    plot_image2.drawHeight = 600
+    description2 = Paragraph("Description : Prix moyen des livres par catégorie.", description_style)
+
+    stats = Paragraph(f"La catégorie la plus représentée est {get_higher_category(category_data)}, la catégorie qui a le prix moyen le plus élevé est {get_most_espensive(category_data)} et le prix moyen de tous les livres est {get_average_price(category_data)}£.")
+
+    content = [title, Spacer(1, 20), plot_image1, Spacer(1, 10), description1, Spacer(1, 20), plot_image2, Spacer(1, 10), description2, Spacer(1, 10), stats]
+
+    pdf.build(content)
+
+#create_setup_folder('images')
+#create_setup_folder('csv')
 category_data = scrap_all()
 pie_chart(category_data)
 bar_chart(category_data)
+create_pdf("rapport_prix_livres.pdf", category_data)
+
 
 
